@@ -449,12 +449,42 @@ export function createSky(seed) {
     clouds.push(puff);
     group.add(puff);
   }
+
+  // Hot-air balloons: big pops of colour drifting over the islands.
+  const balloons = [];
+  const balloonCols = [0xe63946, 0xf2c94c, 0x4361ee];
+  const balloonSpots = [[-700, 260, 500], [900, 330, -900], [300, 210, 1100]];
+  for (let i = 0; i < balloonSpots.length; i += 1) {
+    const [bx, by, bz] = balloonSpots[i];
+    const balloon = new THREE.Group();
+    const envelope = new THREE.Mesh(
+      new THREE.SphereGeometry(16, 14, 12),
+      new THREE.MeshStandardMaterial({ color: balloonCols[i], roughness: 0.6 }),
+    );
+    envelope.scale.set(1, 1.15, 1);
+    envelope.castShadow = true;
+    const basket = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 5, 6),
+      new THREE.MeshStandardMaterial({ color: 0x7a4a2b, roughness: 0.9 }),
+    );
+    basket.position.y = -22;
+    balloon.add(envelope, basket);
+    balloon.position.set(bx, by, bz);
+    balloon.userData.phase = i * 2.1;
+    balloons.push(balloon);
+    group.add(balloon);
+  }
   return {
     group, clouds,
     update(dt) {
       for (const cl of clouds) {
         cl.position.x += cl.userData.speed * dt;
         if (cl.position.x > WORLD.half + 400) cl.position.x = -WORLD.half - 400;
+      }
+      for (const b of balloons) {
+        b.position.x += dt * 3;
+        b.position.y += Math.sin(Date.now() / 3000 + b.userData.phase) * dt * 1.5;
+        if (b.position.x > WORLD.half + 400) b.position.x = -WORLD.half - 400;
       }
     },
   };

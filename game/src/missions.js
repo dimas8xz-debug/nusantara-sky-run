@@ -20,7 +20,7 @@ function ringPositions(seed) {
 export function createMissions(scene, seed) {
   const rings = ringPositions(seed);
   const ringGroup = new THREE.Group(); ringGroup.name = 'rings';
-  const ringGeo = new THREE.TorusGeometry(RING.radius, 2.2, 10, 28);
+  const ringGeo = new THREE.TorusGeometry(RING.radius, 3.0, 12, 32);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0xf2c94c });
   const ringMatNext = new THREE.MeshBasicMaterial({ color: 0x7dff8a });
   const ringMeshes = rings.map((r) => {

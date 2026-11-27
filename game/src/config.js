@@ -34,9 +34,9 @@ export const BEST_KEY = 'nusantara-sky-run.best';
 export const STEP = 1 / 60;
 
 export const PALETTE = {
-  sky: 0x8ec9e8, fog: 0xbcd9e8, sea: 0x1e6f8e, seaDeep: 0x145a78,
-  sand: 0xe8d29a, grass: 0x5da24a, forest: 0x2f6b34, rock: 0x8a7f72,
-  volcano: 0x5d4a42, lava: 0xe85d26, runway: 0x3a3f46, runwayLine: 0xf2f2f2,
+  sky: 0x8ec9e8, fog: 0xbcd9e8, sea: 0x0e9bb5, seaDeep: 0x0a7a94,
+  sand: 0xf0d89a, grass: 0x4fb84a, forest: 0x2a7a38, rock: 0x8a7f72,
+  volcano: 0x5d4a42, lava: 0xff6a1a, runway: 0x3a3f46, runwayLine: 0xf2f2f2,
   planeRed: 0xd43d2a, planeWhite: 0xf5f2ea, planeGold: 0xf2c94c,
   ring: 0xf2c94c, cloud: 0xffffff,
 };

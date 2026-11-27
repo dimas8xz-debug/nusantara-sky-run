@@ -27,7 +27,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.22;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -35,9 +35,9 @@ scene.background = new THREE.Color(PALETTE.sky);
 scene.fog = new THREE.Fog(0xd8e4ea, WORLD.fogNear, WORLD.fogFar);
 const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.5, 9000);
 
-scene.add(new THREE.HemisphereLight(0xbfd9ff, 0x4a5a3a, 0.9));
+scene.add(new THREE.HemisphereLight(0xbfd9ff, 0x4a5a3a, 1.05));
 // Golden-hour sun: warm, low, with shadows that follow the plane.
-const sun = new THREE.DirectionalLight(0xffd9a0, 2.4);
+const sun = new THREE.DirectionalLight(0xffd9a0, 3.0);
 sun.castShadow = true;
 sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.camera.left = -260; sun.shadow.camera.right = 260;

@@ -178,6 +178,21 @@ export function createAircraft() {
     exhausts.push(exhaust);
   }
   group.add(engines);
+  // Wingtip contrails: bright white ribbons trailing behind the wingtips,
+  // fading in as the jet picks up speed — the most visible accent in flight.
+  const contrails = [];
+  for (const x of [-5.6, 5.6]) {
+    const trail = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.4, 22),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
+      }),
+    );
+    trail.rotation.x = -Math.PI / 2;
+    trail.position.set(x, -0.3, 12);
+    group.add(trail);
+    contrails.push(trail);
+  }
   // Pitot tube under the nose.
   const pitot = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), dark);
   pitot.rotation.x = Math.PI / 2; pitot.position.set(0.5, -0.9, -5.2);
@@ -233,6 +248,10 @@ export function createAircraft() {
       canopy.visible = !on;
     },
     update(dt, speed) {
+      // Contrails appear above 25 m/s (set directly so a single rendered
+      // frame — e.g. a screenshot — already shows them).
+      const trailTarget = speed > 25 ? 0.4 : 0;
+      for (const t of contrails) t.material.opacity = trailTarget;
       // Exhaust glow brightens (and flickers slightly) with speed.
       const glow = Math.min(0.85, Math.max(0.08, (speed - 10) / 55));
       const flicker = 1 + Math.sin(performance.now() / 90) * 0.08;
