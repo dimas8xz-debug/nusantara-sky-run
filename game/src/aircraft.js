@@ -113,6 +113,18 @@ export function createAircraft() {
   const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 12), glass);
   canopy.scale.set(0.75, 0.48, 2.0); canopy.position.set(0, 0.95, -1.4);
   group.add(canopy);
+  // Passenger windows and doors along the fuselage, like a real airliner.
+  const windowMat = new THREE.MeshStandardMaterial({ color: 0x16283a, roughness: 0.15, metalness: 0.5 });
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 6; i += 1) {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.55), windowMat);
+      win.position.set(sx * 1.28, 0.35, -2.6 + i * 0.85);
+      group.add(win);
+    }
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.3, 0.8), panelLine);
+    door.position.set(sx * 1.3, 0.1, 1.6);
+    group.add(door);
+  }
 
   // Swept main wing (low-mounted), red tips and winglets.
   const wing = sweptWing(11.5, 3.2, 1.2, 0.2, 1.8, silver);

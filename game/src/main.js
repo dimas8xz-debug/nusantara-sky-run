@@ -33,7 +33,7 @@ container.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(PALETTE.sky);
 scene.fog = new THREE.Fog(0xd8e4ea, WORLD.fogNear, WORLD.fogFar);
-const camera = new THREE.PerspectiveCamera(68, window.innerWidth / window.innerHeight, 0.5, 9000);
+const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.5, 9000);
 
 scene.add(new THREE.HemisphereLight(0xbfd9ff, 0x4a5a3a, 1.05));
 // Golden-hour sun: warm, low, with shadows that follow the plane.
@@ -120,7 +120,7 @@ function placeCamera(dt) {
   camera.position.copy(camPos);
   camera.lookAt(camTarget);
   camera.rotation.z += f.roll * 0.35;
-  const wantFov = Math.min(82, 62 + f.speed * 0.28);
+  const wantFov = Math.min(78, 58 + f.speed * 0.25);
   if (Math.abs(camera.fov - wantFov) > 0.05) { camera.fov += (wantFov - camera.fov) * 0.1; camera.updateProjectionMatrix(); }
 }
 

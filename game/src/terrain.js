@@ -52,14 +52,14 @@ function flattenNearRunway(x, z, height) {
 // canvas and tiled over the terrain so the low-poly mesh reads as ground.
 function makeGroundTexture(seed) {
   const rand = createRandom(seed * 31 + 7);
-  const S = 1024; // HD ground texture: four times the pixels of the old 512 one.
+  const S = 2048; // Photographic-detail ground texture, drawn once at runtime.
   const c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d');
   g.fillStyle = '#6fae56'; g.fillRect(0, 0, S, S);
   const speckles = [
-    ['#5da24a', 10400, 2, 6], ['#3f7d3a', 7200, 2, 8], ['#8fbf6a', 5600, 2, 6],
-    ['#e8d29a', 3600, 4, 10], ['#7a6a55', 2800, 2, 6], ['#a8c86a', 3600, 2, 4],
-    ['#2f7d4a', 2400, 1, 3], ['#d8c88a', 1600, 3, 7],
+    ['#5da24a', 42000, 3, 10], ['#3f7d3a', 29000, 3, 14], ['#8fbf6a', 22000, 3, 10],
+    ['#e8d29a', 14000, 6, 16], ['#7a6a55', 11000, 3, 10], ['#a8c86a', 14000, 3, 7],
+    ['#2f7d4a', 10000, 2, 5], ['#d8c88a', 6000, 5, 12], ['#6b8f3a', 16000, 2, 6],
   ];
   for (const [color, count, rMin, rMax] of speckles) {
     g.fillStyle = color;
@@ -67,6 +67,13 @@ function makeGroundTexture(seed) {
       const r = rMin + rand() * (rMax - rMin);
       g.beginPath(); g.arc(rand() * S, rand() * S, r, 0, Math.PI * 2); g.fill();
     }
+  }
+  // Fine grass-blade strokes, so the ground reads as vegetation up close.
+  for (let i = 0; i < 9000; i += 1) {
+    g.strokeStyle = rand() > 0.5 ? 'rgba(46,110,52,0.5)' : 'rgba(140,190,90,0.5)';
+    g.lineWidth = 1.5;
+    const x = rand() * S; const y = rand() * S;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rand() - 0.5) * 6, y - 4 - rand() * 6); g.stroke();
   }
   // Faint contour strokes, like a survey map of the hills.
   g.strokeStyle = 'rgba(40,70,40,0.16)'; g.lineWidth = 2;
@@ -373,6 +380,36 @@ export function createTerrain(seed) {
   });
   rocks.castShadow = true;
   group.add(rocks);
+
+  // Grass tufts on the meadows, so the ground has real texture up close.
+  const tuftGeo = new THREE.ConeGeometry(1.1, 3.2, 4);
+  const tuftMat = new THREE.MeshStandardMaterial({ color: 0x4a9a3d, roughness: 1 });
+  const tuftSpots = [];
+  guard = 0;
+  while (tuftSpots.length < 1200 && guard < 8000) {
+    guard += 1;
+    const x = (rand() - 0.5) * 3600; const z = (rand() - 0.5) * 3600;
+    const h = terrainHeight(x, z);
+    if (h < 4 || h > 50) continue;
+    tuftSpots.push([x, h, z]);
+  }
+  const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, tuftSpots.length);
+  tuftSpots.forEach(([x, h, z], i) => {
+    const s = 0.7 + rand() * 1.1;
+    sc.set(s, s, s);
+    m4.compose(new THREE.Vector3(x, h + 1.2 * s, z), q, sc); tufts.setMatrixAt(i, m4);
+  });
+  group.add(tufts);
+
+  // Foam rings where the sea meets each island's shore.
+  const foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 });
+  for (const isle of ISLANDS) {
+    const foam = new THREE.Mesh(new THREE.TorusGeometry(isle.r * 0.98, 5, 6, 48), foamMat);
+    foam.rotation.x = -Math.PI / 2;
+    foam.position.set(isle.x, WORLD.seaLevel + 0.4, isle.z);
+    foam.scale.y = 1;
+    group.add(foam);
+  }
 
   let time = 0;
   return {
