@@ -52,44 +52,48 @@ function flattenNearRunway(x, z, height) {
 // canvas and tiled over the terrain so the low-poly mesh reads as ground.
 function makeGroundTexture(seed) {
   const rand = createRandom(seed * 31 + 7);
-  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const S = 1024; // HD ground texture: four times the pixels of the old 512 one.
+  const c = document.createElement('canvas'); c.width = S; c.height = S;
   const g = c.getContext('2d');
-  g.fillStyle = '#6fae56'; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = '#6fae56'; g.fillRect(0, 0, S, S);
   const speckles = [
-    ['#5da24a', 2600, 1, 3], ['#3f7d3a', 1800, 1, 4], ['#8fbf6a', 1400, 1, 3],
-    ['#e8d29a', 900, 2, 5], ['#7a6a55', 700, 1, 3], ['#a8c86a', 900, 1, 2],
+    ['#5da24a', 10400, 2, 6], ['#3f7d3a', 7200, 2, 8], ['#8fbf6a', 5600, 2, 6],
+    ['#e8d29a', 3600, 4, 10], ['#7a6a55', 2800, 2, 6], ['#a8c86a', 3600, 2, 4],
+    ['#2f7d4a', 2400, 1, 3], ['#d8c88a', 1600, 3, 7],
   ];
   for (const [color, count, rMin, rMax] of speckles) {
     g.fillStyle = color;
     for (let i = 0; i < count; i += 1) {
       const r = rMin + rand() * (rMax - rMin);
-      g.beginPath(); g.arc(rand() * 512, rand() * 512, r, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.arc(rand() * S, rand() * S, r, 0, Math.PI * 2); g.fill();
     }
   }
   // Faint contour strokes, like a survey map of the hills.
-  g.strokeStyle = 'rgba(40,70,40,0.16)'; g.lineWidth = 1;
-  for (let i = 0; i < 26; i += 1) {
+  g.strokeStyle = 'rgba(40,70,40,0.16)'; g.lineWidth = 2;
+  for (let i = 0; i < 40; i += 1) {
     g.beginPath();
-    const y0 = rand() * 512;
+    const y0 = rand() * S;
     g.moveTo(0, y0);
-    for (let x = 0; x <= 512; x += 32) g.lineTo(x, y0 + Math.sin(x * 0.02 + i) * 22);
+    for (let x = 0; x <= S; x += 64) g.lineTo(x, y0 + Math.sin(x * 0.01 + i) * 44);
     g.stroke();
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(24, 24);
   tex.colorSpace = THREE.SRGBColorSpace;
+  // Anisotropic filtering keeps the ground sharp when seen at a low angle.
+  tex.anisotropy = 8;
   return tex;
 }
 
 function softSpriteTexture() {
-  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const g = c.getContext('2d');
-  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  const grad = g.createRadialGradient(128, 128, 8, 128, 128, 124);
   grad.addColorStop(0, 'rgba(255,255,255,0.95)');
   grad.addColorStop(0.55, 'rgba(255,255,255,0.55)');
   grad.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -116,7 +120,7 @@ export function createTerrain(seed) {
   const group = new THREE.Group();
   group.name = 'terrain';
 
-  const size = WORLD.size; const seg = 180;
+  const size = WORLD.size; const seg = 240;
   const geo = new THREE.PlaneGeometry(size, size, seg, seg);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
@@ -211,7 +215,7 @@ export function createTerrain(seed) {
   road.position.set(180, 7, -260); road.rotation.y = 0.35; road.receiveShadow = true;
   group.add(road);
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf2e8d5, roughness: 0.9 });
-  const roofMat = new THREE.MeshStandardMaterial({ color: 0xb03a2a, roughness: 0.85 });
+  const roofCols = [0xb03a2a, 0x1d4e89, 0x2f7d4a, 0xe07b24, 0x8e44ad, 0xc0392b];
   const rand = createRandom(seed + 77);
   for (let i = 0; i < 9; i += 1) {
     const hx = 60 + i * 34 + (rand() - 0.5) * 14;
@@ -220,12 +224,101 @@ export function createTerrain(seed) {
     const house = new THREE.Group();
     const walls = new THREE.Mesh(new THREE.BoxGeometry(13, 8, 11), wallMat);
     walls.position.y = 4; walls.castShadow = true;
+    const roofMat = new THREE.MeshStandardMaterial({ color: roofCols[i % roofCols.length], roughness: 0.85 });
     const roof = new THREE.Mesh(new THREE.ConeGeometry(10, 5, 4), roofMat);
     roof.position.y = 10.5; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
     house.add(walls, roof);
     house.position.set(hx, hy, hz);
     house.rotation.y = rand() * Math.PI;
     group.add(house);
+  }
+
+  // Accents: colourful sailboats on the sea, a red-and-white lighthouse on
+  // the home island's shore, a windsock by the home runway, and palm trees
+  // along the beaches — small pops of colour that read from the air.
+  const boats = [];
+  const sailCols = [0xe63946, 0xf2c94c, 0x2a9d8f, 0x4361ee];
+  const boatSpots = [[420, -620, 0.6], [760, 240, 2.1], [-420, 1080, 4.0], [1180, -420, 5.2]];
+  for (let i = 0; i < boatSpots.length; i += 1) {
+    const [bx, bz, heading] = boatSpots[i];
+    const boat = new THREE.Group();
+    const hull = new THREE.Mesh(
+      new THREE.BoxGeometry(16, 3, 5),
+      new THREE.MeshStandardMaterial({ color: 0x7a4a2b, roughness: 0.8 }),
+    );
+    hull.position.y = 1; hull.castShadow = true;
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 14, 6), new THREE.MeshStandardMaterial({ color: 0x5a3d24, roughness: 0.9 }));
+    mast.position.y = 8;
+    const sailShape = new THREE.Shape();
+    sailShape.moveTo(0, 0); sailShape.lineTo(0, 12); sailShape.lineTo(9, 0); sailShape.closePath();
+    const sail = new THREE.Mesh(
+      new THREE.ShapeGeometry(sailShape),
+      new THREE.MeshStandardMaterial({ color: sailCols[i], side: THREE.DoubleSide, roughness: 0.7 }),
+    );
+    sail.position.set(0.3, 2.5, 0);
+    boat.add(hull, mast, sail);
+    boat.position.set(bx, WORLD.seaLevel + 0.5, bz);
+    boat.rotation.y = heading;
+    boat.userData.phase = i * 1.7;
+    boats.push(boat);
+    group.add(boat);
+  }
+  // Lighthouse: striped tower on the shore east of the home runway.
+  const lightX = 820; const lightZ = -560;
+  const lightY = terrainHeight(lightX, lightZ);
+  const lighthouse = new THREE.Group();
+  for (let i = 0; i < 4; i += 1) {
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(5 - i * 0.6, 5.6 - i * 0.6, 7, 12),
+      new THREE.MeshStandardMaterial({ color: i % 2 === 0 ? 0xf2f2f2 : 0xd43d2a, roughness: 0.7 }),
+    );
+    band.position.y = 3.5 + i * 7; band.castShadow = true;
+    lighthouse.add(band);
+  }
+  const lamp = new THREE.Mesh(
+    new THREE.SphereGeometry(3.2, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffe9a8 }),
+  );
+  lamp.position.y = 31;
+  lighthouse.add(lamp);
+  const lampGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: softSpriteTexture(), color: 0xffe9a8, transparent: true, opacity: 0.8, depthWrite: false,
+  }));
+  lampGlow.position.y = 31; lampGlow.scale.set(40, 40, 1);
+  lighthouse.add(lampGlow);
+  lighthouse.position.set(lightX, lightY, lightZ);
+  group.add(lighthouse);
+  // Windsock by the home runway.
+  const sockPole = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 16, 6), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.6 }));
+  sockPole.position.set(RUNWAYS.home.x + 60, RUNWAYS.home.height + 8, RUNWAYS.home.z - 40);
+  group.add(sockPole);
+  const sock = new THREE.Mesh(
+    new THREE.ConeGeometry(2.2, 9, 10, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xff7b24, side: THREE.DoubleSide, roughness: 0.7 }),
+  );
+  sock.rotation.z = Math.PI / 2; sock.position.set(RUNWAYS.home.x + 64, RUNWAYS.home.height + 15, RUNWAYS.home.z - 40);
+  sock.castShadow = true;
+  group.add(sock);
+  // Palm trees along the home island's beaches.
+  const palmTrunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 1 });
+  const palmLeafMat = new THREE.MeshStandardMaterial({ color: 0x3a9d4a, roughness: 1 });
+  const palmSpots = [[-620, -880], [-480, -960], [240, -980], [520, -1020], [-900, 220], [980, 900], [1500, 1200]];
+  for (const [px, pz] of palmSpots) {
+    const py = terrainHeight(px, pz);
+    if (py < 2 || py > 12) continue;
+    const palm = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 12, 6), palmTrunkMat);
+    trunk.position.y = 6; trunk.rotation.z = 0.18; trunk.castShadow = true;
+    palm.add(trunk);
+    for (let a = 0; a < 5; a += 1) {
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(1.6, 9, 4), palmLeafMat);
+      leaf.position.set(Math.cos(a * 1.26) * 3.2, 12.5, Math.sin(a * 1.26) * 3.2);
+      leaf.rotation.z = Math.cos(a * 1.26) * 1.1;
+      leaf.rotation.x = -Math.sin(a * 1.26) * 1.1;
+      palm.add(leaf);
+    }
+    palm.position.set(px, py, pz);
+    group.add(palm);
   }
 
   // Forest: instanced low-poly trees on the grassy slopes, clear of runways.
@@ -273,6 +366,13 @@ export function createTerrain(seed) {
       }
       p.needsUpdate = true;
       seaGeo.computeVertexNormals();
+      // Boats bob on the swell; the windsock swings gently.
+      for (const b of boats) {
+        b.position.y = WORLD.seaLevel + 0.5 + Math.sin(time * 0.8 + b.userData.phase) * 0.4;
+        b.rotation.z = Math.sin(time * 0.6 + b.userData.phase) * 0.04;
+      }
+      sock.rotation.y = Math.sin(time * 0.5) * 0.5;
+      lampGlow.material.opacity = 0.6 + Math.sin(time * 2) * 0.2;
       // Smoke rises, spreads and fades, then loops back to the crater.
       for (const s of smoke) {
         s.userData.phase += dt * 0.03;
@@ -308,7 +408,7 @@ export function createSky(seed) {
   const skyTex = new THREE.CanvasTexture(c);
   skyTex.colorSpace = THREE.SRGBColorSpace;
   const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(6000, 24, 16),
+    new THREE.SphereGeometry(6000, 32, 20),
     new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false }),
   );
   group.add(dome);

@@ -140,6 +140,14 @@ export function createAircraft() {
   const finStripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 1.6), white);
   finStripe.position.set(0, 2.2, 4.0); finStripe.rotation.x = -0.45;
   group.add(finStripe);
+  // Indonesian flag accent on the tail fin: red over white.
+  for (const sx of [-0.11, 0.11]) {
+    const flagRed = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.55, 1.0), red);
+    flagRed.position.set(sx, 2.35, 4.05); flagRed.rotation.x = -0.45;
+    const flagWhite = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.55, 1.0), white);
+    flagWhite.position.set(sx, 1.8, 4.25); flagWhite.rotation.x = -0.45;
+    group.add(flagRed, flagWhite);
+  }
 
   // Twin jet engines under the wings: nacelle, dark intake, nozzle,
   // and a glowing exhaust disc that brightens with speed.

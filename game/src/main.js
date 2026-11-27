@@ -39,7 +39,7 @@ scene.add(new THREE.HemisphereLight(0xbfd9ff, 0x4a5a3a, 0.9));
 // Golden-hour sun: warm, low, with shadows that follow the plane.
 const sun = new THREE.DirectionalLight(0xffd9a0, 2.4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.camera.left = -260; sun.shadow.camera.right = 260;
 sun.shadow.camera.top = 260; sun.shadow.camera.bottom = -260;
 sun.shadow.camera.near = 100; sun.shadow.camera.far = 4200;
@@ -181,6 +181,8 @@ function endGame(crashed) {
 }
 
 function runShot(name) {
+  // Screenshot mode renders at full pixel ratio for a sharper capture.
+  renderer.setPixelRatio(2);
   document.body.classList.add('shot');
   const sceneShot = stageShot(name, flight, missions, terrain.terrainHeight);
   syncAircraft();
