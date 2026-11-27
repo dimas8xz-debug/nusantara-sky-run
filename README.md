@@ -10,6 +10,8 @@ twin-jet with swept wings, winglets and glowing exhausts, over sea,
 islands, a smoking volcano, rice terraces and two island runways — all
 low-poly, all generated in code, no model files.
 
+Built for the [best-flight-game bounty](https://make.fun/c/best-flight-game-20261126-0057) on make.fun.
+
 ## How to play
 
 Serve the game locally, then open it in desktop Chrome:
