@@ -154,11 +154,11 @@ export function createTerrain(seed) {
   group.add(land);
 
   // Sea: standard material with a specular sheen, gently animated waves.
-  const seaGeo = new THREE.PlaneGeometry(size * 1.4, size * 1.4, 48, 48);
+  const seaGeo = new THREE.PlaneGeometry(size * 1.4, size * 1.4, 96, 96);
   seaGeo.rotateX(-Math.PI / 2);
   const seaBase = seaGeo.attributes.position.array.slice();
   const sea = new THREE.Mesh(seaGeo, new THREE.MeshStandardMaterial({
-    color: PALETTE.sea, roughness: 0.25, metalness: 0.55,
+    color: PALETTE.sea, roughness: 0.12, metalness: 0.7,
     transparent: true, opacity: 0.96,
   }));
   sea.position.y = WORLD.seaLevel; sea.name = 'sea'; sea.receiveShadow = true;
@@ -324,7 +324,7 @@ export function createTerrain(seed) {
   // Forest: instanced low-poly trees on the grassy slopes, clear of runways.
   const treeSpots = [];
   let guard = 0;
-  while (treeSpots.length < 420 && guard < 6000) {
+  while (treeSpots.length < 800 && guard < 12000) {
     guard += 1;
     const x = (rand() - 0.5) * 3800; const z = (rand() - 0.5) * 3800;
     const h = terrainHeight(x, z);
@@ -352,6 +352,27 @@ export function createTerrain(seed) {
   });
   trunks.castShadow = true; crowns.castShadow = true;
   group.add(trunks, crowns);
+
+  // Boulders on the hillsides, for depth between the trees.
+  const rockGeo = new THREE.DodecahedronGeometry(3.2, 0);
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 1 });
+  const rockSpots = [];
+  guard = 0;
+  while (rockSpots.length < 140 && guard < 4000) {
+    guard += 1;
+    const x = (rand() - 0.5) * 3800; const z = (rand() - 0.5) * 3800;
+    const h = terrainHeight(x, z);
+    if (h < 10 || h > 120) continue;
+    rockSpots.push([x, h, z]);
+  }
+  const rocks = new THREE.InstancedMesh(rockGeo, rockMat, rockSpots.length);
+  rockSpots.forEach(([x, h, z], i) => {
+    const s = 0.6 + rand() * 1.4;
+    sc.set(s, s * 0.7, s);
+    m4.compose(new THREE.Vector3(x, h + 1, z), q, sc); rocks.setMatrixAt(i, m4);
+  });
+  rocks.castShadow = true;
+  group.add(rocks);
 
   let time = 0;
   return {
@@ -434,7 +455,7 @@ export function createSky(seed) {
   const cloudMat = new THREE.SpriteMaterial({
     map: sunTex, color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false,
   });
-  for (let i = 0; i < 64; i += 1) {
+  for (let i = 0; i < 96; i += 1) {
     const layer = i % 3;
     const puff = new THREE.Sprite(cloudMat.clone());
     puff.material.opacity = 0.45 + rand() * 0.4;
@@ -474,6 +495,33 @@ export function createSky(seed) {
     balloons.push(balloon);
     group.add(balloon);
   }
+  // Rainbow: six thin arcs over the home island, bright against the sky.
+  const rainbowCols = [0xff3b30, 0xff9500, 0xffcc00, 0x34c759, 0x0a84ff, 0xbf5af2];
+  for (let i = 0; i < rainbowCols.length; i += 1) {
+    const arc = new THREE.Mesh(
+      new THREE.TorusGeometry(880 + i * 18, 7, 6, 64, Math.PI),
+      new THREE.MeshBasicMaterial({ color: rainbowCols[i], transparent: true, opacity: 0.75, fog: false }),
+    );
+    arc.position.set(-200, 40, -1400);
+    group.add(arc);
+  }
+
+  // Birds: small dark V shapes circling over the islands.
+  const birds = [];
+  const birdMat = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+  for (let i = 0; i < 10; i += 1) {
+    const bird = new THREE.Group();
+    for (const s of [-1, 1]) {
+      const wing = new THREE.Mesh(new THREE.PlaneGeometry(4, 1.2), birdMat);
+      wing.position.x = s * 2;
+      wing.rotation.z = s * 0.5;
+      bird.add(wing);
+    }
+    bird.position.set((rand() - 0.5) * 1600, 180 + rand() * 160, (rand() - 0.5) * 1600);
+    bird.userData = { speed: 14 + rand() * 8, angle: rand() * Math.PI * 2, r: 200 + rand() * 300, cx: bird.position.x, cz: bird.position.z };
+    birds.push(bird);
+    group.add(bird);
+  }
   return {
     group, clouds,
     update(dt) {
@@ -485,6 +533,12 @@ export function createSky(seed) {
         b.position.x += dt * 3;
         b.position.y += Math.sin(Date.now() / 3000 + b.userData.phase) * dt * 1.5;
         if (b.position.x > WORLD.half + 400) b.position.x = -WORLD.half - 400;
+      }
+      for (const bd of birds) {
+        const u = bd.userData;
+        u.angle += (u.speed / u.r) * dt;
+        bd.position.set(u.cx + Math.cos(u.angle) * u.r, bd.position.y, u.cz + Math.sin(u.angle) * u.r);
+        bd.rotation.y = -u.angle;
       }
     },
   };

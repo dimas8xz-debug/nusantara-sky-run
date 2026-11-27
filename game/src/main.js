@@ -105,8 +105,9 @@ function placeCamera(dt) {
     return;
   }
   // Chase camera with lag: it trails the plane and swings gently after it,
-  // and the field of view widens as the plane goes faster.
-  const back = 27; const up = 9.5;
+  // and the field of view widens as the plane goes faster. Kept close so
+  // the jet fills more of the frame in screenshots.
+  const back = 21; const up = 7.5;
   const wantX = f.x + Math.sin(f.heading) * back;
   const wantY = f.y + up;
   const wantZ = f.z + Math.cos(f.heading) * back;
