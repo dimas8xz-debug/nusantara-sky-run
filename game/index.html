@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nusantara Sky Run — a flight game over the Indonesian archipelago</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #8ec9e8;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #eef1f5; }
+  #scene { position: fixed; inset: 0; }
+  #scene canvas { display: block; touch-action: none; }
+  .hidden { display: none !important; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* HUD — DOM overlay so it is visible in screenshots */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel { background: rgba(17, 24, 38, 0.72); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(2px); }
+  #hud-top-left { position: absolute; top: 14px; left: 14px; min-width: 210px; }
+  #hud-top-left .row { display: flex; justify-content: space-between; gap: 18px; font-size: 20px; }
+  #hud-top-left .label { color: #9fb3c8; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+  #hud-top-right { position: absolute; top: 14px; right: 14px; text-align: right; min-width: 190px; }
+  #hud-top-right .row { display: flex; justify-content: space-between; gap: 14px; font-size: 16px; }
+  #hud-mission { font-size: 20px; font-weight: 700; }
+  #hud-objective { font-size: 13px; color: #cfe3f2; margin-top: 4px; max-width: 260px; }
+  .bar { height: 8px; background: rgba(255,255,255,0.18); border-radius: 4px; overflow: hidden; margin: 3px 0 8px; }
+  .bar > div { height: 100%; border-radius: 4px; }
+  #fuel-bar { background: #4fc3f7; width: 100%; }
+  #damage-bar { background: #e5534b; width: 0%; }
+  #throttle-bar { background: #f2c94c; width: 0%; }
+  #hud-bottom { position: absolute; bottom: 14px; left: 14px; font-size: 14px; }
+  #hud-message { position: absolute; top: 22%; left: 50%; transform: translateX(-50%);
+    font-size: 24px; font-weight: 700; text-shadow: 0 2px 8px rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.3s; }
+  #hud-stall { position: absolute; top: 32%; left: 50%; transform: translateX(-50%);
+    font-size: 26px; font-weight: 800; color: #ff6b5e; text-shadow: 0 2px 8px rgba(0,0,0,0.7); display: none; }
+  /* Artificial horizon */
+  #horizon { position: absolute; bottom: 14px; right: 14px; width: 130px; height: 130px;
+    border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,0.5); background: #7fb8d8; }
+  /* Round gauges: speed and altitude, needles driven by the flight state */
+  #gauges { position: absolute; bottom: 66px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; }
+  .gauge { width: 118px; height: 118px; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #2a3648, #121a26 70%);
+    border: 2px solid rgba(255,255,255,0.45); position: relative; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+  .gauge .g-label { position: absolute; top: 16px; left: 0; right: 0; text-align: center; font-size: 10px; letter-spacing: 0.12em; color: #9fb3c8; }
+  .gauge .g-value { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; font-size: 20px; font-weight: 700; }
+  .gauge .needle { position: absolute; left: calc(50% - 1.5px); bottom: 50%; width: 3px; height: 44px;
+    background: #f2c94c; transform-origin: 50% 100%; border-radius: 2px; }
+  .gauge .g-hub { position: absolute; left: calc(50% - 6px); top: calc(50% - 6px); width: 12px; height: 12px;
+    border-radius: 50%; background: #eef1f5; }
+  .gauge .tick { position: absolute; left: calc(50% - 1px); top: 6px; width: 2px; height: 8px; background: rgba(255,255,255,0.6); transform-origin: 1px 53px; }
+  /* Compass strip across the top */
+  #compass-strip { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 340px; height: 34px;
+    overflow: hidden; border-radius: 8px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); }
+  #compass-inner { position: absolute; top: 0; height: 100%; white-space: nowrap; font-size: 14px; }
+  #compass-inner span { display: inline-block; width: 60px; text-align: center; color: #eef1f5; text-shadow: 0 1px 4px rgba(0,0,0,0.7); }
+  #compass-centre { position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: #f2c94c; transform: translateX(-50%); }
+  /* In screenshot mode the end panel drops to the bottom so the view stays clear */
+  body.shot .screen { background: transparent; align-items: flex-end; padding-bottom: 26px; }
+  body.shot .screen .card { padding: 14px 22px; }
+  body.shot .screen .card h2 { font-size: 24px; }
+  body.shot .screen .card p { font-size: 13px; margin: 4px 0; }
+  #horizon-ball { position: absolute; inset: -60%; }
+  #horizon-ball .sky { position: absolute; top: 0; left: 0; right: 0; height: 50%; background: #7fb8d8; }
+  #horizon-ball .ground { position: absolute; bottom: 0; left: 0; right: 0; height: 50%; background: #8a6b4a; }
+  #horizon-ball .line { position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #fff; }
+  #horizon::after { content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 4px;
+    background: #f2c94c; transform: translate(-50%, -50%); border-radius: 2px; }
+  /* Screens */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(10, 20, 34, 0.55); }
+  .card { background: rgba(17, 28, 44, 0.92); border: 1px solid rgba(255,255,255,0.2); border-radius: 16px;
+    padding: 28px 34px; max-width: 620px; text-align: center; }
+  .card h1 { margin: 0 0 6px; font-size: 44px; }
+  .card h2 { margin: 0 0 10px; font-size: 34px; }
+  .card p { color: #cfe3f2; line-height: 1.5; }
+  .missions { display: flex; gap: 10px; margin: 18px 0; flex-wrap: wrap; justify-content: center; }
+  .missions button { background: #22354d; color: #eef1f5; border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 10px; padding: 12px; width: 175px; cursor: pointer; font-size: 14px; }
+  .missions button.selected { border-color: #f2c94c; background: #3a2f10; outline: 2px solid #f2c94c; }
+  .missions button b { display: block; font-size: 16px; margin-bottom: 4px; }
+  .big { background: #f2c94c; color: #1a1a1a; border: none; border-radius: 10px; padding: 14px 28px;
+    font-size: 18px; font-weight: 700; cursor: pointer; margin: 4px; }
+  .ghost { background: transparent; color: #eef1f5; border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 10px; padding: 12px 20px; font-size: 15px; cursor: pointer; margin: 4px; }
+  .keys { font-size: 13px; color: #9fb3c8; margin-top: 14px; line-height: 1.7; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="scene" aria-label="Nusantara Sky Run: chase view of a prop plane over islands, sea and a volcano"></div>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud" class="hidden">
+  <div id="hud-top-left" class="panel">
+    <div class="label">Altitude · Speed · Heading</div>
+    <div class="row"><span id="hud-alt">0 ft</span><span id="hud-speed">0 kt</span><span id="hud-heading">000° N</span></div>
+    <div class="label" style="margin-top:8px">Throttle <span id="hud-throttle">0%</span></div>
+    <div class="bar"><div id="throttle-bar"></div></div>
+    <div class="label">Fuel <span id="hud-fuel">100%</span></div>
+    <div class="bar"><div id="fuel-bar"></div></div>
+    <div class="label">Damage <span id="hud-damage">0%</span></div>
+    <div class="bar"><div id="damage-bar"></div></div>
+  </div>
+  <div id="hud-top-right" class="panel">
+    <div id="hud-mission">Ring Run</div>
+    <div id="hud-objective"></div>
+    <div class="row" style="margin-top:8px"><span>Time <b id="hud-timer">00:00</b></span><span>Score <b id="hud-score">0</b></span><span>Best <b id="hud-best">0</b></span></div>
+  </div>
+  <div id="compass-strip" class="panel"><div id="compass-inner"></div><div id="compass-centre"></div></div>
+  <div id="gauges">
+    <div class="gauge"><div class="g-label">SPEED · kt</div><div class="g-value" id="gauge-speed-val">0</div><div class="needle" id="needle-speed"></div><div class="g-hub"></div></div>
+    <div class="gauge"><div class="g-label">ALTITUDE · ft</div><div class="g-value" id="gauge-alt-val">0</div><div class="needle" id="needle-alt"></div><div class="g-hub"></div></div>
+  </div>
+  <div id="hud-bottom" class="panel">W/S throttle · ← → / A D bank · ↑ ↓ pitch · drag mouse to steer · E drop supplies · C cockpit · P pause · R restart · M sound</div>
+  <div id="horizon"><div id="horizon-ball"><div class="sky"></div><div class="ground"></div><div class="line"></div></div></div>
+  <div id="hud-message"></div>
+  <div id="hud-stall">⚠ STALL — push the nose down, add throttle</div>
+</div>
+
+<div id="screen-title" class="screen">
+  <div class="card">
+    <h1>✈ Nusantara Sky Run</h1>
+    <p>A flight game over the Indonesian archipelago — sea, islands, a smoking volcano,
+    rice terraces and two island runways. Chase view, live instruments, three missions.</p>
+    <div class="missions">
+      <button data-mission="rings" class="selected"><b>Ring Run</b>Fly through 8 golden rings in order.</button>
+      <button data-mission="landing"><b>Island Landing</b>Take off, cross the sea, land gently on Pulau Karang.</button>
+      <button data-mission="canyon"><b>Canyon Supply</b>Fly low through the canyon, drop supplies, return home.</button>
+    </div>
+    <button id="btn-fly" class="big">Take off — Space</button>
+    <p class="keys">W/S throttle · Arrow keys / A D to bank and pitch · drag the mouse to steer · C switches chase / cockpit view<br>
+    Too slow and the wing stalls — keep your speed up. Land gently or take damage.</p>
+  </div>
+</div>
+
+<div id="screen-paused" class="screen hidden">
+  <div class="card">
+    <h2>Paused</h2>
+    <p>The plane is holding over the islands. The volcano will wait.</p>
+    <button id="btn-resume" class="big">Resume — P</button>
+    <button id="btn-restart-paused" class="ghost">Restart mission — R</button>
+  </div>
+</div>
+
+<div id="screen-over" class="screen hidden">
+  <div class="card">
+    <h2 id="over-title">Flight over</h2>
+    <p id="over-text"></p>
+    <button id="btn-again" class="big">Fly again — Space</button>
+    <button id="btn-title" class="ghost">Change mission</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
