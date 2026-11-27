@@ -5,9 +5,10 @@
 [![Reward](https://make.fun/badge/best-flight-game-20261126-0057/dimas8xz-debug/nusantara-sky-run/reward.svg)](https://make.fun/c/best-flight-game-20261126-0057)
 
 An original 3D flight game over the Indonesian archipelago, built for the
-make.fun **best-flight-game** competition. Chase view behind a red-and-white
-prop plane, over sea, islands, a smoking volcano, rice terraces and two
-island runways — all low-poly, all generated in code, no model files.
+make.fun **best-flight-game** competition. Chase view behind a modern
+twin-jet with swept wings, winglets and glowing exhausts, over sea,
+islands, a smoking volcano, rice terraces and two island runways — all
+low-poly, all generated in code, no model files.
 
 ## How to play
 

@@ -1,19 +1,20 @@
-// The aircraft, built only from primitives in the same style as the terrain,
-// but with real shaping and shading: a lathe-turned fuselage, tapered
-// extruded wings, a glass canopy, a propeller that blurs into a disc at
-// speed, panel lines, livery, navigation lights and landing gear.
+// The aircraft — a modern jet, built only from primitives, in the same
+// style as the terrain: a long, sleek lathe fuselage, swept-back tapered
+// wings with winglets, twin under-wing jet nacelles with glowing exhausts,
+// a tall swept tail fin, a tinted glass canopy, panel lines, livery,
+// navigation lights and slim landing gear.
 // A small cockpit dashboard (visible in cockpit mode) sits under the canopy.
 import * as THREE from 'three';
 import { PALETTE } from './config.js';
 
-function softDiscTexture() {
+function glowTexture() {
   const c = document.createElement('canvas'); c.width = 128; c.height = 128;
   const g = c.getContext('2d');
-  const grad = g.createRadialGradient(64, 64, 6, 64, 64, 62);
-  grad.addColorStop(0, 'rgba(200,200,200,0)');
-  grad.addColorStop(0.25, 'rgba(200,200,200,0.10)');
-  grad.addColorStop(0.8, 'rgba(180,180,180,0.28)');
-  grad.addColorStop(1, 'rgba(160,160,160,0.05)');
+  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(255,220,140,0.95)');
+  grad.addColorStop(0.35, 'rgba(255,140,40,0.55)');
+  grad.addColorStop(0.8, 'rgba(255,80,20,0.18)');
+  grad.addColorStop(1, 'rgba(255,60,10,0)');
   g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -48,18 +49,21 @@ function dashboardTexture() {
   return tex;
 }
 
-function taperedWing(span, chordRoot, chordTip, thickness, material) {
+// Full-span swept wing, symmetric about the fuselage: wide chord at the
+// root (centre) tapering to a narrow chord at both tips, tips swept aft.
+function sweptWing(span, chordRoot, chordTip, thickness, sweep, material) {
   const shape = new THREE.Shape();
-  shape.moveTo(0, -chordRoot / 2);
-  shape.lineTo(span / 2, -chordTip / 2);
-  shape.lineTo(span / 2, chordTip / 2);
+  shape.moveTo(-span / 2, -chordTip / 2 + sweep);
+  shape.lineTo(0, -chordRoot / 2);
+  shape.lineTo(span / 2, -chordTip / 2 + sweep);
+  shape.lineTo(span / 2, chordTip / 2 + sweep);
   shape.lineTo(0, chordRoot / 2);
+  shape.lineTo(-span / 2, chordTip / 2 + sweep);
   shape.closePath();
   const geo = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.25, bevelSegments: 2,
+    depth: thickness, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.2, bevelSegments: 2,
   });
   geo.rotateX(Math.PI / 2);
-  geo.translate(0, 0, 0);
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
   return mesh;
@@ -68,102 +72,128 @@ function taperedWing(span, chordRoot, chordTip, thickness, material) {
 export function createAircraft() {
   const group = new THREE.Group();
   group.name = 'aircraft';
+  const silver = new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.25, metalness: 0.55 });
+  const white = new THREE.MeshStandardMaterial({ color: PALETTE.planeWhite, roughness: 0.35, metalness: 0.3 });
+  const blue = new THREE.MeshStandardMaterial({ color: 0x1d4e89, roughness: 0.35, metalness: 0.4 });
   const red = new THREE.MeshStandardMaterial({ color: PALETTE.planeRed, roughness: 0.45, metalness: 0.25 });
-  const white = new THREE.MeshStandardMaterial({ color: PALETTE.planeWhite, roughness: 0.4, metalness: 0.15 });
   const gold = new THREE.MeshStandardMaterial({ color: PALETTE.planeGold, roughness: 0.35, metalness: 0.5 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.6, metalness: 0.3 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.55, metalness: 0.35 });
   const glass = new THREE.MeshStandardMaterial({
-    color: 0x9fd8ef, roughness: 0.08, metalness: 0.4, transparent: true, opacity: 0.55,
+    color: 0x1e3a55, roughness: 0.06, metalness: 0.6, transparent: true, opacity: 0.8,
   });
-  const panelLine = new THREE.MeshStandardMaterial({ color: 0x5a2a22, roughness: 0.7 });
+  const panelLine = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.7 });
 
-  // Fuselage: lathe profile — pointed spinner nose, swelling cabin, tapering tail.
+  // Fuselage: long sleek lathe — pointed nose, slim cabin, tapering tail.
   const profile = [
-    [0.02, -5.9], [0.55, -5.7], [0.95, -5.0], [1.25, -3.8], [1.45, -2.0],
-    [1.5, -0.5], [1.42, 1.0], [1.2, 2.4], [0.85, 3.6], [0.45, 4.4], [0.02, 4.7],
+    [0.02, -6.4], [0.45, -6.2], [0.85, -5.4], [1.15, -4.2], [1.3, -2.5],
+    [1.35, -0.8], [1.3, 0.8], [1.1, 2.4], [0.8, 3.6], [0.45, 4.4], [0.02, 4.8],
   ].map(([r, z]) => new THREE.Vector2(r, z));
-  const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 18), white);
+  const body = new THREE.Mesh(new THREE.LatheGeometry(profile, 20), silver);
   body.rotation.x = Math.PI / 2; // lathe axis Y -> forward -Z
   body.castShadow = true;
   group.add(body);
-  // Red nose cone and gold cheatline stripe along the fuselage.
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(1.02, 2.0, 18), red);
-  nose.rotation.x = -Math.PI / 2; nose.position.z = -5.6; nose.castShadow = true;
+  // Dark radome nose tip.
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.82, 1.7, 18), dark);
+  nose.rotation.x = -Math.PI / 2; nose.position.z = -6.1; nose.castShadow = true;
   group.add(nose);
-  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(1.51, 1.51, 0.9, 18, 1, true), gold);
-  stripe.rotation.x = Math.PI / 2; stripe.position.z = 0.6;
-  group.add(stripe);
+  // Blue cheatline + gold stripe along the fuselage.
+  const stripeBlue = new THREE.Mesh(new THREE.CylinderGeometry(1.36, 1.36, 0.5, 20, 1, true), blue);
+  stripeBlue.rotation.x = Math.PI / 2; stripeBlue.position.z = 0.9;
+  group.add(stripeBlue);
+  const stripeGold = new THREE.Mesh(new THREE.CylinderGeometry(1.37, 1.37, 0.16, 20, 1, true), gold);
+  stripeGold.rotation.x = Math.PI / 2; stripeGold.position.z = 0.55;
+  group.add(stripeGold);
   // Panel lines: thin dark rings around the fuselage.
   for (const z of [-2.6, 0.2, 2.2]) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.48, 0.03, 6, 24), panelLine);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.33, 0.025, 6, 24), panelLine);
     ring.position.z = z;
     group.add(ring);
   }
-  // Canopy: a stretched glass dome with a frame.
+  // Canopy: low, tinted, stretched glass dome.
   const canopy = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 12), glass);
-  canopy.scale.set(0.82, 0.62, 1.7); canopy.position.set(0, 1.05, -1.1);
+  canopy.scale.set(0.75, 0.48, 2.0); canopy.position.set(0, 0.95, -1.4);
   group.add(canopy);
-  // (No canopy frame ring: it sat right in the pilot's eyeline in cockpit mode.)
 
-  // Tapered main wing, gold tips; tapered tailplane and fin.
-  const wing = taperedWing(13.5, 2.6, 1.5, 0.22, red);
-  wing.position.set(-6.75, -0.25, -0.4);
+  // Swept main wing (low-mounted), red tips and winglets.
+  const wing = sweptWing(11.5, 3.2, 1.2, 0.2, 1.8, silver);
+  wing.position.set(0, -0.3, -0.3);
   group.add(wing);
-  const tipGeo = new THREE.BoxGeometry(0.5, 0.3, 1.5);
-  for (const x of [-6.85, 6.85]) {
-    const tip = new THREE.Mesh(tipGeo, gold);
-    tip.position.set(x, -0.25, -0.4); tip.castShadow = true;
+  for (const x of [-5.75, 5.75]) {
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.28, 1.2), red);
+    tip.position.set(x, -0.3, 1.35); tip.castShadow = true;
     group.add(tip);
+    const winglet = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.0, 0.9), red);
+    winglet.position.set(x, 0.15, 1.6); winglet.rotation.z = x < 0 ? 0.35 : -0.35;
+    winglet.castShadow = true;
+    group.add(winglet);
   }
-  const tailWing = taperedWing(5.4, 1.7, 1.0, 0.18, white);
-  tailWing.position.set(-2.7, 0.35, 3.6);
+  // Swept tailplane and tall swept fin.
+  const tailWing = sweptWing(4.6, 1.8, 0.9, 0.16, 1.1, white);
+  tailWing.position.set(0, 0.3, 3.5);
   group.add(tailWing);
   const finShape = new THREE.Shape();
-  finShape.moveTo(0, 0); finShape.lineTo(1.9, 0.15); finShape.lineTo(1.9, 1.9); finShape.lineTo(0.4, 2.4); finShape.closePath();
-  const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.18, bevelEnabled: false }), red);
+  finShape.moveTo(0, 0); finShape.lineTo(2.1, 0.15); finShape.lineTo(1.3, 2.7); finShape.lineTo(0.35, 2.8); finShape.closePath();
+  const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.16, bevelEnabled: false }), red);
   fin.rotation.y = Math.PI / 2; // shape X becomes the chord along Z, Y stays vertical
-  fin.position.set(-0.09, 0.4, 3.4); fin.castShadow = true;
+  fin.position.set(-0.08, 0.4, 3.3); fin.castShadow = true;
   group.add(fin);
+  const finStripe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 1.6), white);
+  finStripe.position.set(0, 2.2, 4.0); finStripe.rotation.x = -0.45;
+  group.add(finStripe);
 
-  // Propeller: hub, two shaped blades, and a translucent blur disc that
-  // fades in as the engine spins up.
-  const prop = new THREE.Group(); prop.position.set(0, 0, -6.1);
-  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), dark);
-  prop.add(hub);
-  const bladeGeo = new THREE.BoxGeometry(0.42, 3.6, 0.12);
-  for (const angle of [0, Math.PI]) {
-    const blade = new THREE.Mesh(bladeGeo, dark);
-    blade.rotation.z = angle; blade.castShadow = true;
-    prop.add(blade);
+  // Twin jet engines under the wings: nacelle, dark intake, nozzle,
+  // and a glowing exhaust disc that brightens with speed.
+  const engines = new THREE.Group();
+  const exhausts = [];
+  const glowTex = glowTexture();
+  for (const x of [-2.2, 2.2]) {
+    const nacelle = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.5, 3.4, 14), silver);
+    nacelle.rotation.x = Math.PI / 2; nacelle.position.set(x, -0.75, -0.2); nacelle.castShadow = true;
+    engines.add(nacelle);
+    const intake = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.09, 8, 16), dark);
+    intake.position.set(x, -0.75, -1.95);
+    engines.add(intake);
+    const intakeInner = new THREE.Mesh(new THREE.CircleGeometry(0.5, 14), dark);
+    intakeInner.position.set(x, -0.75, -1.94); intakeInner.rotation.y = Math.PI;
+    engines.add(intakeInner);
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.42, 0.7, 14), dark);
+    nozzle.rotation.x = Math.PI / 2; nozzle.position.set(x, -0.75, 1.65);
+    engines.add(nozzle);
+    const exhaust = new THREE.Mesh(
+      new THREE.CircleGeometry(0.46, 16),
+      new THREE.MeshBasicMaterial({
+        map: glowTex, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide,
+      }),
+    );
+    exhaust.position.set(x, -0.75, 2.02);
+    engines.add(exhaust);
+    exhausts.push(exhaust);
   }
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(2.1, 32),
-    new THREE.MeshBasicMaterial({
-      map: softDiscTexture(), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
-    }),
-  );
-  prop.add(disc);
-  group.add(prop);
+  group.add(engines);
+  // Pitot tube under the nose.
+  const pitot = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), dark);
+  pitot.rotation.x = Math.PI / 2; pitot.position.set(0.5, -0.9, -5.2);
+  group.add(pitot);
 
-  // Landing gear: struts, wheels with gold hubs, and a tail wheel.
-  for (const [x, z] of [[-1.15, -1.2], [1.15, -1.2]]) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2, 6), dark);
-    leg.position.set(x, -1.4, z); group.add(leg);
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.32, 12), dark);
-    wheel.rotation.z = Math.PI / 2; wheel.position.set(x, -1.95, z); wheel.castShadow = true; group.add(wheel);
-    const hubcap = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.34, 8), gold);
-    hubcap.rotation.z = Math.PI / 2; hubcap.position.set(x, -1.95, z); group.add(hubcap);
+  // Landing gear: slim struts, small wheels with gold hubs, tail wheel.
+  for (const [x, z] of [[-1.0, -0.8], [1.0, -0.8]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.1, 6), dark);
+    leg.position.set(x, -1.35, z); group.add(leg);
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.26, 12), dark);
+    wheel.rotation.z = Math.PI / 2; wheel.position.set(x, -1.85, z); wheel.castShadow = true; group.add(wheel);
+    const hubcap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.28, 8), gold);
+    hubcap.rotation.z = Math.PI / 2; hubcap.position.set(x, -1.85, z); group.add(hubcap);
   }
-  const tailWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 10), dark);
-  tailWheel.rotation.z = Math.PI / 2; tailWheel.position.set(0, -1.1, 3.9); group.add(tailWheel);
+  const tailWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.18, 10), dark);
+  tailWheel.rotation.z = Math.PI / 2; tailWheel.position.set(0, -1.0, 3.9); group.add(tailWheel);
 
   // Navigation lights: red left, green right, white tail strobe.
-  const lightL = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
-  lightL.position.set(-6.9, -0.2, -0.4); group.add(lightL);
-  const lightR = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), new THREE.MeshBasicMaterial({ color: 0x22ff66 }));
-  lightR.position.set(6.9, -0.2, -0.4); group.add(lightR);
+  const lightL = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
+  lightL.position.set(-5.75, -0.25, 1.35); group.add(lightL);
+  const lightR = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x22ff66 }));
+  lightR.position.set(5.75, -0.25, 1.35); group.add(lightR);
   const lightT = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  lightT.position.set(0, 0.4, 4.7); group.add(lightT);
+  lightT.position.set(0, 0.4, 4.8); group.add(lightT);
 
   // Cockpit: dashboard with lit instruments, glareshield, side panels.
   // Hidden in chase view; shown in cockpit mode.
@@ -187,16 +217,18 @@ export function createAircraft() {
   group.add(cockpit);
 
   return {
-    group, prop, disc, cockpit,
-    // In cockpit mode the canopy glass and its frame would sit right in
-    // front of the camera, so hide them and show the dashboard instead.
+    group, prop: engines, disc: exhausts[0], cockpit,
+    // In cockpit mode the canopy glass would sit right in front of the
+    // camera, so hide it and show the dashboard instead.
     setCockpitMode(on) {
       cockpit.visible = on;
       canopy.visible = !on;
     },
     update(dt, speed) {
-      prop.rotation.z += dt * (4 + speed * 0.9);
-      disc.material.opacity = Math.min(0.55, Math.max(0, (speed - 12) / 60));
+      // Exhaust glow brightens (and flickers slightly) with speed.
+      const glow = Math.min(0.85, Math.max(0.08, (speed - 10) / 55));
+      const flicker = 1 + Math.sin(performance.now() / 90) * 0.08;
+      for (const ex of exhausts) ex.material.opacity = glow * flicker;
       // Strobe blink.
       lightT.visible = (Math.floor(performance.now() / 700) % 2 === 0);
     },
